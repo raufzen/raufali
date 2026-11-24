@@ -93,7 +93,10 @@ class MainActivity : ComponentActivity() {
             val historyState by historyViewModel.uiState.collectAsStateWithLifecycle()
             val modelsState by modelsViewModel.uiState.collectAsStateWithLifecycle()
             val voskStates by voicePermViewModel.voskStates.collectAsStateWithLifecycle()
-            val ttsVoices by voicePermViewModel.ttsVoices.collectAsStateWithLifecycle()
+            val geminiVoices by voicePermViewModel.geminiVoices.collectAsStateWithLifecycle()
+            val isVoiceSpeaking by voicePermViewModel.isVoiceSpeaking.collectAsStateWithLifecycle()
+            val voiceError by voicePermViewModel.voiceError.collectAsStateWithLifecycle()
+            val lastVoiceKeySlot by voicePermViewModel.lastVoiceKeySlot.collectAsStateWithLifecycle()
             val permissionStatuses by voicePermViewModel.permissionStatuses.collectAsStateWithLifecycle()
 
             VoiceControlTheme(themeMode = homeState.settings.themeMode) {
@@ -113,7 +116,10 @@ class MainActivity : ComponentActivity() {
                         historyState = historyState,
                         modelsState = modelsState,
                         voskStates = voskStates,
-                        ttsVoices = ttsVoices,
+                        geminiVoices = geminiVoices,
+                        isVoiceSpeaking = isVoiceSpeaking,
+                        voiceError = voiceError,
+                        lastVoiceKeySlot = lastVoiceKeySlot,
                         permissionStatuses = permissionStatuses,
                         mainViewModel = mainViewModel,
                         historyViewModel = historyViewModel,
@@ -151,7 +157,10 @@ private fun VoiceControlMainShell(
     historyState: com.example.ui.viewmodel.HistoryUiState,
     modelsState: com.example.ui.viewmodel.ModelsSettingsUiState,
     voskStates: Map<com.example.service.voice.VoskModelSpec, com.example.service.voice.ModelInstallState>,
-    ttsVoices: List<com.example.service.voice.TtsVoiceOption>,
+    geminiVoices: List<com.example.data.remote.GeminiVoiceOption>,
+    isVoiceSpeaking: Boolean,
+    voiceError: String?,
+    lastVoiceKeySlot: com.example.data.local.ApiKeySlot?,
     permissionStatuses: List<com.example.domain.model.PermissionStatusItem>,
     mainViewModel: MainViewModel,
     historyViewModel: HistoryViewModel,
@@ -335,6 +344,7 @@ private fun VoiceControlMainShell(
                                 grantedPermissionsCount = permissionStatuses.count { it.isGranted },
                                 totalPermissionsCount = permissionStatuses.size,
                                 hasApiKey = homeState.hasApiKey,
+                                configuredKeysCount = modelsState.keySummary.totalConfigured,
                                 onSelectTheme = voicePermViewModel::setThemeMode,
                                 onOpenModels = { navController.navigate(AppRoute.ModelsApiKey) },
                                 onOpenVoice = { navController.navigate(AppRoute.VoiceSettings) },
@@ -348,7 +358,7 @@ private fun VoiceControlMainShell(
                                 uiState = modelsState,
                                 language = homeState.settings.appLanguage,
                                 onBack = { navController.popBackStack() },
-                                onSaveApiKey = modelsViewModel::saveApiKeyAndRefresh,
+                                onSaveApiKey = modelsViewModel::saveApiKey,
                                 onClearApiKey = modelsViewModel::clearApiKey,
                                 onRefreshModels = modelsViewModel::refreshModels,
                                 onSelectReasoningModel = modelsViewModel::selectReasoningModel,
@@ -360,7 +370,10 @@ private fun VoiceControlMainShell(
                             VoiceSettingsScreen(
                                 settings = homeState.settings,
                                 voskStates = voskStates,
-                                ttsVoices = ttsVoices,
+                                geminiVoices = geminiVoices,
+                                isVoiceSpeaking = isVoiceSpeaking,
+                                voiceError = voiceError,
+                                lastVoiceKeySlot = lastVoiceKeySlot,
                                 onBack = { navController.popBackStack() },
                                 onSelectLanguage = voicePermViewModel::setLanguage,
                                 onSaveWakeWord = voicePermViewModel::setWakeWord,
@@ -368,11 +381,10 @@ private fun VoiceControlMainShell(
                                 onToggleOverlay = voicePermViewModel::setOverlayEnabled,
                                 onToggleAutoStart = voicePermViewModel::setAutoStartOnBoot,
                                 onToggleOfflineOnly = voicePermViewModel::setOfflineOnlyMode,
-                                onSelectTtsLocale = voicePermViewModel::setTtsLanguageCode,
-                                onSelectTtsVoice = voicePermViewModel::setTtsVoice,
-                                onChangeTtsSpeed = voicePermViewModel::setTtsSpeed,
-                                onChangeTtsPitch = voicePermViewModel::setTtsPitch,
-                                onTestVoice = voicePermViewModel::testTtsVoice,
+                                onSelectGeminiVoice = voicePermViewModel::setGeminiVoiceName,
+                                onChangeVoiceSpeed = voicePermViewModel::setVoiceSpeed,
+                                onTestGeminiVoice = voicePermViewModel::testGeminiVoice,
+                                onStopGeminiVoice = voicePermViewModel::stopGeminiVoice,
                                 onDownloadVosk = voicePermViewModel::downloadVoskModel,
                                 onDeleteVosk = voicePermViewModel::deleteVoskModel
                             )

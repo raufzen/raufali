@@ -26,10 +26,8 @@ data class AppSettings(
     val wakeWordEnabled: Boolean = false,
     val overlayEnabled: Boolean = false,
     val autoStartOnBoot: Boolean = true,
-    val ttsLanguageCode: String = "hi-IN",
-    val ttsVoiceName: String = "",
-    val ttsSpeechRate: Float = 1.0f,
-    val ttsPitch: Float = 1.0f,
+    val geminiVoiceName: String = "Kore",
+    val voiceSpeed: Float = 1.0f,
     val reasoningModelId: String = "",
     val voiceModelId: String = "",
     val confirmSensitiveActions: Boolean = true,
@@ -47,10 +45,8 @@ class SettingsRepository(private val context: Context) {
         val WAKE_WORD_ENABLED = booleanPreferencesKey("wake_word_enabled")
         val OVERLAY_ENABLED = booleanPreferencesKey("overlay_enabled")
         val AUTO_START_ON_BOOT = booleanPreferencesKey("auto_start_on_boot")
-        val TTS_LANGUAGE_CODE = stringPreferencesKey("tts_language_code")
-        val TTS_VOICE_NAME = stringPreferencesKey("tts_voice_name")
-        val TTS_SPEECH_RATE = floatPreferencesKey("tts_speech_rate")
-        val TTS_PITCH = floatPreferencesKey("tts_pitch")
+        val GEMINI_VOICE_NAME = stringPreferencesKey("gemini_voice_name")
+        val VOICE_SPEED = floatPreferencesKey("voice_speed")
         val REASONING_MODEL_ID = stringPreferencesKey("reasoning_model_id")
         val VOICE_MODEL_ID = stringPreferencesKey("voice_model_id")
         val CONFIRM_SENSITIVE = booleanPreferencesKey("confirm_sensitive_actions")
@@ -67,10 +63,8 @@ class SettingsRepository(private val context: Context) {
             wakeWordEnabled = prefs[Keys.WAKE_WORD_ENABLED] ?: false,
             overlayEnabled = prefs[Keys.OVERLAY_ENABLED] ?: false,
             autoStartOnBoot = prefs[Keys.AUTO_START_ON_BOOT] ?: true,
-            ttsLanguageCode = prefs[Keys.TTS_LANGUAGE_CODE] ?: "hi-IN",
-            ttsVoiceName = prefs[Keys.TTS_VOICE_NAME] ?: "",
-            ttsSpeechRate = prefs[Keys.TTS_SPEECH_RATE] ?: 1.0f,
-            ttsPitch = prefs[Keys.TTS_PITCH] ?: 1.0f,
+            geminiVoiceName = prefs[Keys.GEMINI_VOICE_NAME] ?: "Kore",
+            voiceSpeed = prefs[Keys.VOICE_SPEED] ?: 1.0f,
             reasoningModelId = prefs[Keys.REASONING_MODEL_ID] ?: "",
             voiceModelId = prefs[Keys.VOICE_MODEL_ID] ?: "",
             confirmSensitiveActions = prefs[Keys.CONFIRM_SENSITIVE] ?: true,
@@ -87,13 +81,7 @@ class SettingsRepository(private val context: Context) {
     }
 
     suspend fun setAppLanguage(language: AppLanguage) {
-        context.settingsDataStore.edit {
-            it[Keys.APP_LANGUAGE] = language.name
-            it[Keys.TTS_LANGUAGE_CODE] = when (language) {
-                AppLanguage.HINDI, AppLanguage.HINGLISH -> "hi-IN"
-                AppLanguage.ENGLISH -> "en-IN"
-            }
-        }
+        context.settingsDataStore.edit { it[Keys.APP_LANGUAGE] = language.name }
     }
 
     suspend fun setThemeMode(mode: ThemeMode) {
@@ -117,20 +105,12 @@ class SettingsRepository(private val context: Context) {
         context.settingsDataStore.edit { it[Keys.AUTO_START_ON_BOOT] = enabled }
     }
 
-    suspend fun setTtsLanguageCode(code: String) {
-        context.settingsDataStore.edit { it[Keys.TTS_LANGUAGE_CODE] = code }
+    suspend fun setGeminiVoiceName(voiceName: String) {
+        context.settingsDataStore.edit { it[Keys.GEMINI_VOICE_NAME] = voiceName.ifBlank { "Kore" } }
     }
 
-    suspend fun setTtsVoiceName(voiceName: String) {
-        context.settingsDataStore.edit { it[Keys.TTS_VOICE_NAME] = voiceName }
-    }
-
-    suspend fun setTtsSpeechRate(rate: Float) {
-        context.settingsDataStore.edit { it[Keys.TTS_SPEECH_RATE] = rate.coerceIn(0.5f, 2.0f) }
-    }
-
-    suspend fun setTtsPitch(pitch: Float) {
-        context.settingsDataStore.edit { it[Keys.TTS_PITCH] = pitch.coerceIn(0.5f, 1.8f) }
+    suspend fun setVoiceSpeed(rate: Float) {
+        context.settingsDataStore.edit { it[Keys.VOICE_SPEED] = rate.coerceIn(0.75f, 1.4f) }
     }
 
     suspend fun setReasoningModelId(modelId: String) {

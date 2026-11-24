@@ -72,17 +72,6 @@ class CommandDispatcher(
                 }
             }
         }
-
-        scope.launch {
-            settingsRepository.settingsFlow.collectLatest { settings ->
-                ttsManager.applyVoiceConfig(
-                    localeTag = settings.ttsLanguageCode,
-                    voiceName = settings.ttsVoiceName,
-                    speechRate = settings.ttsSpeechRate,
-                    pitch = settings.ttsPitch
-                )
-            }
-        }
     }
 
     fun toggleVoiceListening() {

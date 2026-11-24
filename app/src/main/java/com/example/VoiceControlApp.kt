@@ -34,7 +34,11 @@ class AppContainer(context: Context) {
     // Permissions & Voice Engines
     val permissionChecker: PermissionChecker = PermissionChecker(appContext)
     val voskModelManager: VoskModelManager = VoskModelManager(appContext)
-    val ttsManager: VoiceTtsManager = VoiceTtsManager(appContext)
+    val ttsManager: VoiceTtsManager = VoiceTtsManager(
+        geminiClient = geminiClient,
+        apiKeyStore = apiKeyStore,
+        settingsRepository = settingsRepository
+    )
     val speechRecognizer: VoiceSpeechRecognizer = VoiceSpeechRecognizer(appContext, voskModelManager)
 
     // Domain Parsers & Safety

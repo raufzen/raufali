@@ -1,8 +1,6 @@
 package com.example.data.remote
 
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 /**
@@ -17,7 +15,7 @@ data class ListModelsResponse(
 
 @Serializable
 data class GeminiModelInfo(
-    val name: String, // e.g. "models/..."
+    val name: String,
     val displayName: String = "",
     val description: String = "",
     val version: String = "",
@@ -25,7 +23,6 @@ data class GeminiModelInfo(
     val outputTokenLimit: Int = 0,
     val supportedGenerationMethods: List<String> = emptyList()
 ) {
-    /** Normalized short ID without leading "models/" prefix for compact UI badges. */
     val shortId: String
         get() = name.removePrefix("models/")
 
@@ -36,19 +33,45 @@ data class GeminiModelInfo(
         get() = supportedGenerationMethods.any { it.equals("bidiGenerateContent", ignoreCase = true) }
 
     /**
-     * Heuristic capability indicator based solely on API-reported metadata
-     * (supportedGenerationMethods + description), never hardcoded model names.
+     * Capability heuristic derived solely from API-returned metadata
+     * (supportedGenerationMethods, displayName, description) — never hardcoded model IDs.
      */
     val isVoiceFriendly: Boolean
-        get() = supportsBidiAudio ||
-            (supportsGenerateContent && (
-                description.contains("audio", ignoreCase = true) ||
-                    description.contains("live", ignoreCase = true) ||
-                    description.contains("speech", ignoreCase = true) ||
-                    description.contains("multimodal", ignoreCase = true) ||
-                    description.contains("fast", ignoreCase = true) ||
-                    description.contains("low-latency", ignoreCase = true)
-                ))
+        get() {
+            val meta = "$displayName $description $shortId".lowercase()
+            return supportsBidiAudio ||
+                (supportsGenerateContent && (
+                    meta.contains("tts") ||
+                        meta.contains("audio") ||
+                        meta.contains("voice") ||
+                        meta.contains("speech") ||
+                        meta.contains("live") ||
+                        meta.contains("multimodal")
+                    ))
+        }
+}
+
+/**
+ * Official Gemini API prebuilt voices for native Gemini audio output (responseModalities = ["AUDIO"]).
+ * No local Android TTS engine is used.
+ */
+data class GeminiVoiceOption(
+    val voiceName: String,
+    val styleEn: String,
+    val styleHi: String
+)
+
+object GeminiVoiceCatalog {
+    val voices: List<GeminiVoiceOption> = listOf(
+        GeminiVoiceOption("Kore", "Firm & Clear", "स्पष्ट और संतुलित"),
+        GeminiVoiceOption("Aoede", "Warm & Conversational", "सहज और मधुर"),
+        GeminiVoiceOption("Puck", "Upbeat & Lively", "ऊर्जावान और जीवंत"),
+        GeminiVoiceOption("Charon", "Calm & Informative", "शांत और गंभीर"),
+        GeminiVoiceOption("Fenrir", "Deep & Expressive", "गहरी और प्रभावशाली"),
+        GeminiVoiceOption("Zephyr", "Bright & Friendly", "उजली और दोस्ताना"),
+        GeminiVoiceOption("Leda", "Gentle & Youthful", "सौम्य और हल्की"),
+        GeminiVoiceOption("Orus", "Steady & Direct", "स्थिर और सीधी")
+    )
 }
 
 @Serializable
@@ -61,8 +84,25 @@ data class GenerateContentRequest(
 
 @Serializable
 data class GeminiGenerationConfig(
-    val temperature: Double = 0.2,
-    val topP: Double = 0.95
+    val temperature: Double? = null,
+    val topP: Double? = null,
+    val responseModalities: List<String>? = null,
+    val speechConfig: GeminiSpeechConfig? = null
+)
+
+@Serializable
+data class GeminiSpeechConfig(
+    val voiceConfig: GeminiVoiceConfig
+)
+
+@Serializable
+data class GeminiVoiceConfig(
+    val prebuiltVoiceConfig: GeminiPrebuiltVoiceConfig
+)
+
+@Serializable
+data class GeminiPrebuiltVoiceConfig(
+    val voiceName: String
 )
 
 @Serializable
@@ -139,7 +179,7 @@ sealed class GeminiError(
 ) : Exception(messageEn) {
 
     data object MissingApiKey : GeminiError(
-        messageEn = "Please add your Gemini API key in Models & API Key settings.",
+        messageEn = "Please add your Gemini API keys in Models & API Key settings.",
         messageHi = "कृपया मॉडल और एपीआई की सेटिंग्स में अपनी जेमिनी एपीआई की डालें।"
     )
 
@@ -154,8 +194,8 @@ sealed class GeminiError(
     )
 
     data object QuotaExceeded : GeminiError(
-        messageEn = "Gemini API quota or rate limit exceeded. Wait a moment or check your billing quota.",
-        messageHi = "जेमिनी एपीआई की सीमा (कोटा) पूरी हो गई है। कृपया थोड़ी देर बाद प्रयास करें।"
+        messageEn = "Gemini API quota exceeded across configured keys. Add a fallback key or wait a moment.",
+        messageHi = "जेमिनी एपीआई की सीमा (कोटा) पूरी हो गई है। फॉलबैक की जोड़ें या थोड़ी देर बाद प्रयास करें।"
     )
 
     data object NoNetwork : GeminiError(
@@ -164,8 +204,8 @@ sealed class GeminiError(
     )
 
     data class ModelUnavailable(val modelId: String) : GeminiError(
-        messageEn = "The selected model ($modelId) is no longer available for your API key. Please pick another model.",
-        messageHi = "चुना गया मॉडल ($modelId) अब आपकी एपीआई की के लिए उपलब्ध नहीं है। कृपया दूसरा मॉडल चुनें।"
+        messageEn = "The selected model ($modelId) is not available or does not support this modality. Pick another model in Settings.",
+        messageHi = "चुना गया मॉडल ($modelId) उपलब्ध नहीं है या इस मोड को सपोर्ट नहीं करता। कृपया सेटिंग्स में दूसरा मॉडल चुनें।"
     )
 
     data class ServerError(val detail: String) : GeminiError(

@@ -45,6 +45,7 @@ fun SettingsHubScreen(
     grantedPermissionsCount: Int,
     totalPermissionsCount: Int,
     hasApiKey: Boolean,
+    configuredKeysCount: Int = 0,
     onSelectTheme: (ThemeMode) -> Unit,
     onOpenModels: () -> Unit,
     onOpenVoice: () -> Unit,
@@ -76,10 +77,10 @@ fun SettingsHubScreen(
                 SettingsRowCard(
                     icon = Icons.Rounded.AutoAwesome,
                     title = strings.modelsTitle,
-                    subtitle = if (hasApiKey && settings.reasoningModelId.isNotBlank()) {
-                        "Active: ${settings.reasoningModelId.removePrefix("models/")}"
+                    subtitle = if (hasApiKey) {
+                        "$configuredKeysCount / 4 keys saved • Text: ${settings.reasoningModelId.removePrefix("models/").ifBlank { "Pick model" }}"
                     } else {
-                        "Configure encrypted Gemini API key & dynamic models"
+                        "Add 2 Primary + 2 Fallback Gemini API keys (Text & Voice)"
                     },
                     testTag = "settings_nav_models",
                     onClick = onOpenModels
@@ -90,7 +91,7 @@ fun SettingsHubScreen(
                 SettingsRowCard(
                     icon = Icons.Rounded.GraphicEq,
                     title = strings.voiceSettingsTitle,
-                    subtitle = "${settings.appLanguage.nativeLabel} • Wake word: \"${settings.wakeWord}\" • Vosk Offline",
+                    subtitle = "${settings.appLanguage.nativeLabel} • Gemini Voice: ${settings.geminiVoiceName} • Wake: \"${settings.wakeWord}\"",
                     testTag = "settings_nav_voice",
                     onClick = onOpenVoice
                 )

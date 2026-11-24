@@ -165,7 +165,7 @@ fun PrivacyAboutScreen(
                 PrivacyPillarCard(
                     icon = Icons.Rounded.Lock,
                     title = "Hardware-Backed API Key Encryption",
-                    body = "Your Gemini API key is encrypted on-device with Android Keystore AES-256-GCM and never transmitted anywhere except directly to Google's Gemini REST API."
+                    body = "All 4 Gemini API keys (Text Primary/Fallback and Voice Primary/Fallback) are encrypted on-device with Android Keystore AES-256-GCM and sent only to Google's Gemini REST API."
                 )
             }
 

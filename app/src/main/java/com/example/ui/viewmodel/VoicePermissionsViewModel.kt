@@ -5,14 +5,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.AppContainer
+import com.example.data.local.ApiKeySlot
 import com.example.data.local.AppSettings
+import com.example.data.remote.GeminiVoiceOption
 import com.example.domain.model.AppLanguage
 import com.example.domain.model.OemAutostartGuide
 import com.example.domain.model.PermissionStatusItem
 import com.example.domain.model.PermissionType
 import com.example.domain.model.ThemeMode
 import com.example.service.voice.ModelInstallState
-import com.example.service.voice.TtsVoiceOption
 import com.example.service.voice.VoiceAssistantForegroundService
 import com.example.service.voice.VoskModelSpec
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,8 +34,10 @@ class VoicePermissionsViewModel(
     val voskStates: StateFlow<Map<VoskModelSpec, ModelInstallState>> = container.voskModelManager.states
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
-    val ttsVoices: StateFlow<List<TtsVoiceOption>> = container.ttsManager.availableVoices
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val geminiVoices: StateFlow<List<GeminiVoiceOption>> = container.ttsManager.availableVoices
+    val isVoiceSpeaking: StateFlow<Boolean> = container.ttsManager.isSpeaking
+    val voiceError: StateFlow<String?> = container.ttsManager.lastVoiceError
+    val lastVoiceKeySlot: StateFlow<ApiKeySlot?> = container.ttsManager.lastUsedKeySlot
 
     private val _permissionStatuses = MutableStateFlow(container.permissionChecker.getAllStatuses())
     val permissionStatuses: StateFlow<List<PermissionStatusItem>> = _permissionStatuses.asStateFlow()
@@ -44,7 +47,6 @@ class VoicePermissionsViewModel(
 
     fun refreshPermissions() {
         _permissionStatuses.value = container.permissionChecker.getAllStatuses()
-        container.ttsManager.refreshAvailableVoices()
     }
 
     fun runtimePermissionFor(type: PermissionType): String? =
@@ -100,29 +102,25 @@ class VoicePermissionsViewModel(
         viewModelScope.launch { container.settingsRepository.setOfflineOnlyMode(enabled) }
     }
 
-    fun setTtsLanguageCode(code: String) {
-        viewModelScope.launch { container.settingsRepository.setTtsLanguageCode(code) }
+    fun setGeminiVoiceName(voiceName: String) {
+        viewModelScope.launch { container.settingsRepository.setGeminiVoiceName(voiceName) }
     }
 
-    fun setTtsVoice(voiceName: String) {
-        viewModelScope.launch { container.settingsRepository.setTtsVoiceName(voiceName) }
+    fun setVoiceSpeed(rate: Float) {
+        viewModelScope.launch { container.settingsRepository.setVoiceSpeed(rate) }
     }
 
-    fun setTtsSpeed(rate: Float) {
-        viewModelScope.launch { container.settingsRepository.setTtsSpeechRate(rate) }
-    }
-
-    fun setTtsPitch(pitch: Float) {
-        viewModelScope.launch { container.settingsRepository.setTtsPitch(pitch) }
-    }
-
-    fun testTtsVoice() {
+    fun testGeminiVoice() {
         val sample = when (settings.value.appLanguage) {
-            AppLanguage.ENGLISH -> "Hello! Voice Control AI is ready to assist you offline and online."
-            AppLanguage.HINDI -> "नमस्ते! वॉइस कंट्रोल एआई आपकी मदद के लिए पूरी तरह तैयार है।"
-            AppLanguage.HINGLISH -> "Namaste! Voice Control AI aapki madad ke liye ready hai."
+            AppLanguage.ENGLISH -> "Hello! Gemini Voice is active and ready to assist you."
+            AppLanguage.HINDI -> "नमस्ते! जेमिनी वॉइस आपकी मदद के लिए पूरी तरह तैयार है।"
+            AppLanguage.HINGLISH -> "Namaste! Gemini Voice aapki madad ke liye ready hai."
         }
         container.ttsManager.speak(sample)
+    }
+
+    fun stopGeminiVoice() {
+        container.ttsManager.interrupt()
     }
 
     fun downloadVoskModel(spec: VoskModelSpec) {

@@ -3,6 +3,8 @@ package com.example.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,10 +17,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Download
-import androidx.compose.material.icons.rounded.RecordVoiceOver
+import androidx.compose.material.icons.rounded.StopCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -30,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,19 +46,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.data.local.ApiKeySlot
 import com.example.data.local.AppSettings
+import com.example.data.remote.GeminiVoiceOption
 import com.example.domain.i18n.LocalizedStrings
 import com.example.domain.model.AppLanguage
 import com.example.service.voice.ModelInstallState
-import com.example.service.voice.TtsVoiceOption
 import com.example.service.voice.VoskModelSpec
 import kotlin.math.roundToInt
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun VoiceSettingsScreen(
     settings: AppSettings,
     voskStates: Map<VoskModelSpec, ModelInstallState>,
-    ttsVoices: List<TtsVoiceOption>,
+    geminiVoices: List<GeminiVoiceOption>,
+    isVoiceSpeaking: Boolean,
+    voiceError: String?,
+    lastVoiceKeySlot: ApiKeySlot?,
     onBack: () -> Unit,
     onSelectLanguage: (AppLanguage) -> Unit,
     onSaveWakeWord: (String) -> Unit,
@@ -62,11 +71,10 @@ fun VoiceSettingsScreen(
     onToggleOverlay: (Boolean) -> Unit,
     onToggleAutoStart: (Boolean) -> Unit,
     onToggleOfflineOnly: (Boolean) -> Unit,
-    onSelectTtsLocale: (String) -> Unit,
-    onSelectTtsVoice: (String) -> Unit,
-    onChangeTtsSpeed: (Float) -> Unit,
-    onChangeTtsPitch: (Float) -> Unit,
-    onTestVoice: () -> Unit,
+    onSelectGeminiVoice: (String) -> Unit,
+    onChangeVoiceSpeed: (Float) -> Unit,
+    onTestGeminiVoice: () -> Unit,
+    onStopGeminiVoice: () -> Unit,
     onDownloadVosk: (VoskModelSpec) -> Unit,
     onDeleteVosk: (VoskModelSpec) -> Unit
 ) {
@@ -121,6 +129,130 @@ fun VoiceSettingsScreen(
                                     label = { Text(lang.nativeLabel) },
                                     modifier = Modifier.testTag("voice_lang_${lang.name.lowercase()}")
                                 )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Gemini API Native Voice Selector (NO Local Android TTS)
+            item {
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                            Column {
+                                Text(
+                                    text = if (settings.appLanguage == AppLanguage.HINDI) {
+                                        "जेमिनी API वॉइस (कोई लोकल TTS नहीं)"
+                                    } else {
+                                        "Gemini API Native Voice (No Local TTS)"
+                                    },
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(
+                                    text = if (settings.appLanguage == AppLanguage.HINDI) {
+                                        "आपकी प्राइमरी/फॉलबैक वॉइस API की से सीधे जेमिनी की आवाज़ें चलती हैं।"
+                                    } else {
+                                        "Speaks directly using Gemini API prebuilt voices via your Primary & Fallback Voice API keys."
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            geminiVoices.forEach { voice ->
+                                val styleText = if (settings.appLanguage == AppLanguage.HINDI) {
+                                    voice.styleHi
+                                } else {
+                                    voice.styleEn
+                                }
+                                FilterChip(
+                                    selected = settings.geminiVoiceName == voice.voiceName,
+                                    onClick = { onSelectGeminiVoice(voice.voiceName) },
+                                    label = { Text("${voice.voiceName} • $styleText") },
+                                    modifier = Modifier.testTag("gemini_voice_${voice.voiceName.lowercase()}")
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = "Speaking Pace: ${(settings.voiceSpeed * 100).roundToInt()}%",
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                        Slider(
+                            value = settings.voiceSpeed,
+                            onValueChange = onChangeVoiceSpeed,
+                            valueRange = 0.75f..1.4f
+                        )
+
+                        lastVoiceKeySlot?.let { slot ->
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.65f)
+                            ) {
+                                Text(
+                                    text = "Last played with: ${if (settings.appLanguage == AppLanguage.HINDI) slot.titleHi else slot.titleEn}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                )
+                            }
+                        }
+
+                        voiceError?.let { err ->
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.errorContainer
+                            ) {
+                                Text(
+                                    text = err,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    modifier = Modifier.padding(10.dp)
+                                )
+                            }
+                        }
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = onTestGeminiVoice,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp)
+                                    .testTag("test_gemini_voice_btn")
+                            ) {
+                                Text(
+                                    if (settings.appLanguage == AppLanguage.HINDI) {
+                                        "जेमिनी वॉइस टेस्ट करें"
+                                    } else {
+                                        "Test Gemini Voice (${settings.geminiVoiceName})"
+                                    }
+                                )
+                            }
+                            if (isVoiceSpeaking) {
+                                OutlinedButton(
+                                    onClick = onStopGeminiVoice,
+                                    modifier = Modifier.height(48.dp)
+                                ) {
+                                    Icon(Icons.Rounded.StopCircle, contentDescription = "Stop speaking")
+                                }
                             }
                         }
                     }
@@ -189,7 +321,7 @@ fun VoiceSettingsScreen(
 
                         ToggleRow(
                             title = "Offline-Only Mode",
-                            subtitle = "Block all cloud Gemini calls and only execute local offline commands.",
+                            subtitle = "Block all cloud Gemini calls (both AI Agent and Gemini Voice) and run silent local commands only.",
                             checked = settings.offlineOnlyMode,
                             testTag = "toggle_offline_only",
                             onCheckedChange = onToggleOfflineOnly
@@ -198,86 +330,7 @@ fun VoiceSettingsScreen(
                 }
             }
 
-            // Text-to-Speech (TTS) Controls
-            item {
-                Card(
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(Icons.Rounded.RecordVoiceOver, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                            Text("Voice Reply (Text-to-Speech)", style = MaterialTheme.typography.titleMedium)
-                        }
-
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilterChip(
-                                selected = settings.ttsLanguageCode == "hi-IN",
-                                onClick = { onSelectTtsLocale("hi-IN") },
-                                label = { Text("Hindi (hi-IN)") }
-                            )
-                            FilterChip(
-                                selected = settings.ttsLanguageCode == "en-IN",
-                                onClick = { onSelectTtsLocale("en-IN") },
-                                label = { Text("English (en-IN)") }
-                            )
-                        }
-
-                        if (ttsVoices.isNotEmpty()) {
-                            Text("Available System Voices", style = MaterialTheme.typography.labelLarge)
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                ttsVoices.take(5).forEach { voice ->
-                                    FilterChip(
-                                        selected = settings.ttsVoiceName == voice.name,
-                                        onClick = { onSelectTtsVoice(voice.name) },
-                                        label = { Text(voice.label) }
-                                    )
-                                }
-                            }
-                        }
-
-                        Text(
-                            text = "Speech Speed: ${(settings.ttsSpeechRate * 100).roundToInt()}%",
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                        Slider(
-                            value = settings.ttsSpeechRate,
-                            onValueChange = onChangeTtsSpeed,
-                            valueRange = 0.6f..1.8f
-                        )
-
-                        Text(
-                            text = "Voice Pitch: ${(settings.ttsPitch * 100).roundToInt()}%",
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                        Slider(
-                            value = settings.ttsPitch,
-                            onValueChange = onChangeTtsPitch,
-                            valueRange = 0.7f..1.5f
-                        )
-
-                        OutlinedButton(
-                            onClick = onTestVoice,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp)
-                                .testTag("test_tts_voice_btn")
-                        ) {
-                            Text("Test Voice Reply")
-                        }
-                    }
-                }
-            }
-
-            // Offline Vosk Models Manager
+            // Offline Vosk Speech-to-Text Models Manager
             item {
                 Card(
                     shape = RoundedCornerShape(20.dp),

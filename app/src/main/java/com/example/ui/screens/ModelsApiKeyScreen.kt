@@ -18,7 +18,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Key
+import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
@@ -52,6 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import com.example.data.local.ApiKeySlot
 import com.example.data.remote.GeminiModelInfo
 import com.example.domain.i18n.LocalizedStrings
 import com.example.domain.model.AppLanguage
@@ -64,15 +67,13 @@ fun ModelsApiKeyScreen(
     uiState: ModelsSettingsUiState,
     language: AppLanguage,
     onBack: () -> Unit,
-    onSaveApiKey: (String) -> Unit,
-    onClearApiKey: () -> Unit,
+    onSaveApiKey: (ApiKeySlot, String) -> Unit,
+    onClearApiKey: (ApiKeySlot) -> Unit,
     onRefreshModels: () -> Unit,
     onSelectReasoningModel: (String) -> Unit,
     onSelectVoiceModel: (String) -> Unit
 ) {
     val strings = LocalizedStrings.forLanguage(language)
-    var keyDraft by rememberSaveable { mutableStateOf("") }
-    var showKey by rememberSaveable { mutableStateOf(false) }
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -87,120 +88,151 @@ fun ModelsApiKeyScreen(
         ) {
             item {
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    IconButton(onClick = onBack, modifier = Modifier.testTag("models_back_btn")) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        IconButton(onClick = onBack, modifier = Modifier.testTag("models_back_btn")) {
+                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        }
+                        Text(
+                            text = strings.modelsTitle,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
-                    Text(
-                        text = strings.modelsTitle,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
+
+                    OutlinedButton(
+                        onClick = onRefreshModels,
+                        enabled = uiState.keySummary.hasAnyKey && !uiState.isLoadingModels,
+                        modifier = Modifier
+                            .height(44.dp)
+                            .testTag("refresh_models_btn")
+                    ) {
+                        Icon(Icons.Rounded.Refresh, contentDescription = strings.refreshModels, modifier = Modifier.size(18.dp))
+                    }
                 }
             }
 
-            // Encrypted API Key Entry Card
+            // Quota Protection Overview Banner
             item {
                 Card(
-                    shape = RoundedCornerShape(22.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f))
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(Icons.Rounded.Key, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                             Text(
-                                text = strings.apiKeyLabel,
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                        }
-
-                        if (uiState.hasApiKey) {
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.75f),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = "Saved (AES-256): ${uiState.apiKeyMasked}",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontFamily = JetBrainsMonoFamily,
-                                        color = MaterialTheme.colorScheme.onTertiaryContainer
-                                    )
-                                    IconButton(onClick = onClearApiKey, modifier = Modifier.testTag("clear_api_key_btn")) {
-                                        Icon(
-                                            Icons.Rounded.DeleteOutline,
-                                            contentDescription = "Clear key",
-                                            tint = MaterialTheme.colorScheme.onTertiaryContainer
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        OutlinedTextField(
-                            value = keyDraft,
-                            onValueChange = { keyDraft = it },
-                            label = { Text("Paste Gemini API key (AIza…)") },
-                            singleLine = true,
-                            visualTransformation = if (showKey) VisualTransformation.None else PasswordVisualTransformation(),
-                            trailingIcon = {
-                                IconButton(onClick = { showKey = !showKey }) {
-                                    Icon(
-                                        imageVector = if (showKey) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
-                                        contentDescription = "Toggle key visibility"
-                                    )
-                                }
-                            },
-                            shape = RoundedCornerShape(16.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("gemini_api_key_input")
-                        )
-
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(
-                                onClick = {
-                                    if (keyDraft.isNotBlank()) {
-                                        onSaveApiKey(keyDraft)
-                                        keyDraft = ""
-                                    }
+                                text = if (language == AppLanguage.HINDI) {
+                                    "4 API की कोटा प्रोटेक्शन (AES-256 एन्क्रिप्टेड)"
+                                } else {
+                                    "4-Key Quota Protection (AES-256 Encrypted)"
                                 },
-                                enabled = keyDraft.isNotBlank() && !uiState.isLoadingModels,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(48.dp)
-                                    .testTag("save_api_key_btn")
-                            ) {
-                                Text(strings.saveAndLoadModels)
-                            }
-
-                            OutlinedButton(
-                                onClick = onRefreshModels,
-                                enabled = uiState.hasApiKey && !uiState.isLoadingModels,
-                                modifier = Modifier
-                                    .height(48.dp)
-                                    .testTag("refresh_models_btn")
-                            ) {
-                                Icon(Icons.Rounded.Refresh, contentDescription = strings.refreshModels)
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.primary) {
+                                Text(
+                                    text = "${uiState.keySummary.totalConfigured} / 4",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+                                )
                             }
                         }
+                        Text(
+                            text = if (language == AppLanguage.HINDI) {
+                                "2 प्राइमरी की (1 टेक्स्ट/थिंकिंग के लिए, 1 जेमिनी वॉइस के लिए) + 2 वैकल्पिक फॉलबैक की। अगर फॉलबैक की नहीं दी जाती, तो दोनों प्राइमरी की टेक्स्ट और वॉइस चलाएंगी।"
+                            } else {
+                                "2 Primary keys (1 for Text/Thinking, 1 for Gemini Voice) + 2 optional Fallback keys. If fallback keys are left blank, the 2 primary keys run cleanly for Text and Voice. When a primary key hits quota, its fallback takes over automatically."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
                     }
                 }
+            }
+
+            // SECTION 1: Text / Thinking API Keys (Primary + Optional Fallback)
+            item {
+                SectionHeaderRow(
+                    icon = Icons.Rounded.Psychology,
+                    title = if (language == AppLanguage.HINDI) {
+                        "1. टेक्स्ट / थिंकिंग API की (एजेंट)"
+                    } else {
+                        "1. Text / Thinking API Keys (AI Agent)"
+                    }
+                )
+            }
+
+            item {
+                ApiKeySlotCard(
+                    slot = ApiKeySlot.TEXT_PRIMARY,
+                    maskedPreview = uiState.keySummary.maskedPreviews[ApiKeySlot.TEXT_PRIMARY].orEmpty(),
+                    language = language,
+                    isBusy = uiState.isLoadingModels,
+                    onSave = { onSaveApiKey(ApiKeySlot.TEXT_PRIMARY, it) },
+                    onClear = { onClearApiKey(ApiKeySlot.TEXT_PRIMARY) }
+                )
+            }
+
+            item {
+                ApiKeySlotCard(
+                    slot = ApiKeySlot.TEXT_FALLBACK,
+                    maskedPreview = uiState.keySummary.maskedPreviews[ApiKeySlot.TEXT_FALLBACK].orEmpty(),
+                    language = language,
+                    isBusy = uiState.isLoadingModels,
+                    onSave = { onSaveApiKey(ApiKeySlot.TEXT_FALLBACK, it) },
+                    onClear = { onClearApiKey(ApiKeySlot.TEXT_FALLBACK) }
+                )
+            }
+
+            // SECTION 2: Gemini Voice API Keys (Primary + Optional Fallback)
+            item {
+                SectionHeaderRow(
+                    icon = Icons.Rounded.GraphicEq,
+                    title = if (language == AppLanguage.HINDI) {
+                        "2. जेमिनी वॉइस API की (नो लोकल TTS)"
+                    } else {
+                        "2. Gemini Voice API Keys (No Local TTS)"
+                    }
+                )
+            }
+
+            item {
+                ApiKeySlotCard(
+                    slot = ApiKeySlot.VOICE_PRIMARY,
+                    maskedPreview = uiState.keySummary.maskedPreviews[ApiKeySlot.VOICE_PRIMARY].orEmpty(),
+                    language = language,
+                    isBusy = uiState.isLoadingModels,
+                    onSave = { onSaveApiKey(ApiKeySlot.VOICE_PRIMARY, it) },
+                    onClear = { onClearApiKey(ApiKeySlot.VOICE_PRIMARY) }
+                )
+            }
+
+            item {
+                ApiKeySlotCard(
+                    slot = ApiKeySlot.VOICE_FALLBACK,
+                    maskedPreview = uiState.keySummary.maskedPreviews[ApiKeySlot.VOICE_FALLBACK].orEmpty(),
+                    language = language,
+                    isBusy = uiState.isLoadingModels,
+                    onSave = { onSaveApiKey(ApiKeySlot.VOICE_FALLBACK, it) },
+                    onClear = { onClearApiKey(ApiKeySlot.VOICE_FALLBACK) }
+                )
             }
 
             // Loading / Status / Error / Missing-Model Warning
@@ -209,11 +241,11 @@ fun ModelsApiKeyScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
+                            .padding(12.dp),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        CircularProgressIndicator(modifier = Modifier.size(26.dp))
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
                         Spacer(Modifier.size(12.dp))
                         Text("Fetching live models via ListModels…")
                     }
@@ -264,7 +296,7 @@ fun ModelsApiKeyScreen(
                 }
             }
 
-            // Role-based Dynamic Model Selectors
+            // SECTION 3: Dynamic Role-Based Model Selectors (zero hardcoded model IDs)
             if (uiState.reasoningCandidates.isEmpty() && !uiState.isLoadingModels) {
                 item {
                     Card(
@@ -288,7 +320,7 @@ fun ModelsApiKeyScreen(
                 item {
                     ModelRoleDropdownCard(
                         title = strings.reasoningModelTitle,
-                        description = "Used for the 20-step screen-control Gemini agent (filtered by generateContent).",
+                        description = "Uses Primary Text API Key → Fallback Text API Key automatically.",
                         models = uiState.reasoningCandidates,
                         selectedModelId = uiState.selectedReasoningModelId,
                         testTag = "reasoning_model_dropdown",
@@ -299,12 +331,161 @@ fun ModelsApiKeyScreen(
                 item {
                     ModelRoleDropdownCard(
                         title = strings.voiceModelTitle,
-                        description = "Used for fast replies and audio/multimodal understanding (prioritizes bidiGenerateContent & fast models).",
+                        description = "Uses Primary Voice API Key → Fallback Voice API Key for Gemini native audio replies (choose a TTS/audio-output capable model).",
                         models = uiState.voiceCandidates,
                         selectedModelId = uiState.selectedVoiceModelId,
                         testTag = "voice_model_dropdown",
                         onSelect = onSelectVoiceModel
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionHeaderRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(top = 4.dp)
+    ) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun ApiKeySlotCard(
+    slot: ApiKeySlot,
+    maskedPreview: String,
+    language: AppLanguage,
+    isBusy: Boolean,
+    onSave: (String) -> Unit,
+    onClear: () -> Unit
+) {
+    var draft by rememberSaveable(slot.name) { mutableStateOf("") }
+    var visible by rememberSaveable(slot.name) { mutableStateOf(false) }
+    val isSaved = maskedPreview.isNotBlank()
+
+    Card(
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Key,
+                        contentDescription = null,
+                        tint = if (slot.isPrimary) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = if (language == AppLanguage.HINDI) slot.titleHi else slot.titleEn,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = if (slot.isPrimary) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.secondaryContainer
+                    }
+                ) {
+                    Text(
+                        text = if (slot.isPrimary) "PRIMARY" else "FALLBACK",
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                    )
+                }
+            }
+
+            if (isSaved) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Saved: $maskedPreview",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontFamily = JetBrainsMonoFamily,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                        IconButton(
+                            onClick = onClear,
+                            modifier = Modifier.testTag("clear_key_${slot.name.lowercase()}")
+                        ) {
+                            Icon(
+                                Icons.Rounded.DeleteOutline,
+                                contentDescription = "Clear ${slot.titleEn}",
+                                tint = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        }
+                    }
+                }
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = draft,
+                    onValueChange = { draft = it },
+                    placeholder = { Text(if (isSaved) "Enter new key to replace…" else "Paste Gemini API key (AIza…)") },
+                    singleLine = true,
+                    visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        IconButton(onClick = { visible = !visible }) {
+                            Icon(
+                                imageVector = if (visible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                                contentDescription = "Toggle visibility"
+                            )
+                        }
+                    },
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("input_key_${slot.name.lowercase()}")
+                )
+                Button(
+                    onClick = {
+                        if (draft.isNotBlank()) {
+                            onSave(draft)
+                            draft = ""
+                        }
+                    },
+                    enabled = draft.isNotBlank() && !isBusy,
+                    modifier = Modifier
+                        .height(52.dp)
+                        .testTag("save_key_${slot.name.lowercase()}")
+                ) {
+                    Text(if (language == AppLanguage.HINDI) "सेव" else "Save")
                 }
             }
         }

@@ -85,7 +85,7 @@ class AgentOrchestrator(
         activeJob = scope.launch {
             val settings = settingsRepository.settingsFlow.first()
             val language = settings.appLanguage
-            val apiKey = apiKeyStore.getApiKey()
+            val textKeyChain = apiKeyStore.getTextKeyChain()
             val modelId = settings.reasoningModelId
 
             _taskState.value = AgentTaskState(
@@ -101,7 +101,7 @@ class AgentOrchestrator(
                 }
             )
 
-            if (apiKey.isBlank()) {
+            if (textKeyChain.isEmpty()) {
                 failTask(
                     userCommand,
                     language,
@@ -170,7 +170,7 @@ class AgentOrchestrator(
                     val thoughtBuffer = StringBuilder()
                     val toolCalls = mutableListOf<GeminiFunctionCall>()
 
-                    geminiClient.streamGenerateContent(apiKey, modelId, request).collect { chunk ->
+                    geminiClient.streamGenerateContentWithFallback(textKeyChain, modelId, request).collect { chunk ->
                         if (chunk.deltaText.isNotEmpty()) {
                             thoughtBuffer.append(chunk.deltaText)
                             _taskState.value = _taskState.value.copy(
