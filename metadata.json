@@ -1,0 +1,6 @@
+{
+  "name": "Voice Control AI",
+  "description": "Offline-first Hindi, English, and Hinglish voice accessibility assistant with full phone control and dynamic Gemini AI agent.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

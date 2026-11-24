@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Voice Control AI</string>
+    <string name="accessibility_service_label">Voice Control AI Assistant</string>
+    <string name="accessibility_service_description">Allows Voice Control AI to read on-screen controls and perform taps, scrolls, typing, and system navigation by voice in Hindi, English, and Hinglish. Password fields are always masked and screen content is never logged or stored.</string>
+    <string name="notification_channel_assistant_name">Voice Control Assistant</string>
+    <string name="notification_channel_assistant_desc">Persistent notification for offline wake-word listening and floating voice controls.</string>
+    <string name="notification_channel_task_name">AI Agent Tasks</string>
+    <string name="notification_channel_task_desc">Live progress notifications while an AI agent task is running.</string>
+</resources>
